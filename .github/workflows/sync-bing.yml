@@ -25,7 +25,7 @@ jobs:
           
           if [ -n "$(git status --porcelain)" ]; then
             # 这里改成你实际存放图片的文件夹路径（比如 bing-images/）
-            git add bing-images/
+            git add images/
             git commit -m "chore: 🤖 自动同步今日必应高清壁纸"
             git push origin main
             echo "✅ 新图片已成功推送到仓库！"
