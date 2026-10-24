@@ -17,14 +17,18 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
           
-          # 先拉取远端最新代码并变基同步，彻底解决 "fetch first" 报错
+          # 1. 先把远程网页端最新的提交拉取同步到本地
           git pull origin main --rebase || true
           
-          # 检查 bing-images 文件夹是否存在并执行 Git 移动改名
+          # 2. 检查 bing-images 文件夹是否存在并执行 Git 移动改名
           if [ -d "bing-images" ]; then
             git mv bing-images images
             git commit -m "chore: rename bing-images folder to images"
+            
+            # 3. 推送前再次拉取，确保万无一失
+            git pull origin main --rebase || true
             git push origin main
+            
             echo "✅ 文件夹成功重命名为 images！"
           else
             echo "❌ 没有找到 bing-images 文件夹，可能已经改名或路径不匹配。"
