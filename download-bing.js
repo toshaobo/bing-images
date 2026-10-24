@@ -17,7 +17,7 @@ async function getBingWallpaper() {
 
     const folderName = `${yearStr}-${monthStr}`;
     const fileName = `${endDateStr}.jpg`;
-    const targetDir = path.join(process.cwd(), 'images', folderName);
+    const targetDir = path.join(process.cwd(), 'bing-images', folderName);
 
     if (!fs.existsSync(targetDir)) {
       fs.mkdirSync(targetDir, { recursive: true });
