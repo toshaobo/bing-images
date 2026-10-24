@@ -1,0 +1,25 @@
+name: Rename Folder to Images
+
+on:
+  workflow_dispatch: # 允许网页上手动触发
+
+jobs:
+  rename:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rename bing-images to images
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          # 检查 bing-images 文件夹是否存在并执行 Git 移动改名
+          if [ -d "bing-images" ]; then
+            git mv bing-images images
+            git commit -m "chore: rename bing-images folder to images"
+            git push origin main
+            echo "✅ 文件夹成功重命名为 images！"
+          else
+            echo "❌ 没有找到 bing-images 文件夹，可能已经改名或路径不匹配。"
+          fi
