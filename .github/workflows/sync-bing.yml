@@ -6,6 +6,9 @@ on:
     - cron: '23 1 * * *'  # 北京时间 09:23
   workflow_dispatch:
 
+permissions:
+  contents: write # 赋予写入权限，解决 403 和 128 报错
+
 jobs:
   sync:
     runs-on: ubuntu-latest
@@ -16,16 +19,18 @@ jobs:
         with:
           node-version: '24'
 
-      # 运行下载脚本（确保 download-bing.js 在仓库里，并且它会把图片下载到 bing-images/ 目录）
+      # 运行下载脚本
       - run: node download-bing.js
 
       - run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
           
+          # 先拉取远端最新代码并变基同步，彻底解决 "fetch first" 报错
+          git pull origin main --rebase || true
+          
           if [ -n "$(git status --porcelain)" ]; then
-            # 这里改成你实际存放图片的文件夹路径（比如 bing-images/）
-            git add bing-images/
+            git add images/
             git commit -m "chore: 🤖 自动同步今日必应高清壁纸"
             git push origin main
             echo "✅ 新图片已成功推送到仓库！"
