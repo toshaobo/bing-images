@@ -1,0 +1,566 @@
+---
+import BaseHead from '../components/BaseHead.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+
+// 🌟 核心修复：路径修改为实际的 ../../images（根据你的 .astro 文件层级调整）
+// 使用 query: '?url' 避开 Vite 编译报错
+const imageModules = import.meta.glob('../../images/**/*.{jpg,jpeg,png,webp,JPG,JPEG,PNG,WEBP}', { eager: true, query: '?url' });
+
+// 编译期解析路径、年份并排序
+const sortedImages = Object.entries(imageModules).map(([originalPath, imgObj]: [string, any]) => {
+    const pathParts = originalPath.split('/');
+    const fullFileName = pathParts.pop() || '';
+    const folderName = pathParts[pathParts.length - 1] || '其他';
+    
+    // 保持与截图一致的 YYYY-MM 纯数字分类名
+    let yearMonthCategory = folderName;
+
+    let realDate = folderName.includes('-') ? `${folderName}-01` : "精彩瞬间";
+    let rawDateForSort = folderName.replace('-', '') + "00"; 
+    
+    const cleanFileName = fullFileName.split('.')[0];
+    let title = decodeURIComponent(cleanFileName);
+    let copyright = "Microsoft Bing";
+
+    if (/^\d{8}/.test(cleanFileName)) {
+        const datePart = cleanFileName.substring(0, 8);
+        realDate = datePart.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3');
+        rawDateForSort = datePart;
+        yearMonthCategory = `${datePart.substring(0, 4)}-${datePart.substring(4, 6)}`;
+
+        if (cleanFileName.includes('-')) {
+            const titleParts = cleanFileName.split('-');
+            title = decodeURIComponent(titleParts.slice(1).join('-'));
+        } else {
+            title = `必应每日壁纸`;
+        }
+    }
+
+    return {
+        src: imgObj.default?.src || imgObj.default || '',
+        date: realDate,
+        title: title,
+        copyright: copyright,
+        category: yearMonthCategory,
+        rawDate: rawDateForSort
+    };
+})
+.filter(img => img.src)
+.sort((a, b) => b.rawDate.localeCompare(a.rawDate));
+
+// 1. 🌟 提取最新的一张图作为顶部的全屏巨幕展示
+const todayImage = sortedImages[0] || { src: '', title: '精彩瞬间', date: '' };
+
+// 2. 提取所有时间分类，并让最新的月份按钮排在最前面
+const categories = [...new Set(sortedImages.map(img => img.category))].sort((a, b) => b.localeCompare(a));
+
+// 3. 🌟 将默认初始选中的分类直接设为最新的那个月份
+const defaultCategory = categories[0] || '';
+---
+
+<html lang="zh-CN">
+<head>
+    <BaseHead title="必应高清图库" description="每日全自动同步必应高清壁纸，全屏致敬世界的绝美瞬间。" />
+
+    <style>
+        body {
+            background-color: #ffffff;
+            color: #333333;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* 今日全屏巨幕样式 */
+        .hero-section {
+            position: relative;
+            width: 100%;
+            height: 85vh;
+            overflow: hidden;
+            background-color: #111;
+        }
+
+        .hero-bg {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .hero-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 60%, rgba(0,0,0,0) 100%);
+            padding: 80px 40px 40px 40px;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .hero-tag {
+            background: #0078d4;
+            color: white;
+            font-size: 0.85rem;
+            padding: 4px 12px;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+
+        .hero-title {
+            font-size: 2.2rem;
+            margin: 0 0 10px 0;
+            font-weight: 700;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            max-width: 800px;
+        }
+
+        .hero-date {
+            font-size: 0.95rem;
+            opacity: 0.85;
+            font-family: monospace;
+        }
+
+        /* 主体内容区 */
+        main {
+            flex: 1;
+            width: 100%;
+            max-width: 1300px;
+            margin: 0 auto;
+            padding: 50px 20px;
+            box-sizing: border-box;
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #111111;
+            margin-bottom: 20px;
+            border-left: 5px solid #0078d4;
+            padding-left: 12px;
+        }
+
+        /* 按月份查看区域 */
+        .category-filter {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 40px;
+            background: #fafafa;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #eeeeee;
+        }
+
+        .category-btn {
+            padding: 6px 14px;
+            background: #f0f0f0;
+            color: #444444;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-family: monospace;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.15s ease;
+        }
+
+        .category-btn:hover {
+            background: #e4e4e7;
+            color: #111;
+        }
+
+        .category-btn.active {
+            background: #0078d4;
+            color: #ffffff;
+            box-shadow: 0 3px 8px rgba(0, 120, 212, 0.2);
+        }
+
+        /* 图库网格 */
+        .bing-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            grid-gap: 25px;
+        }
+
+        .bing-card {
+            display: none; 
+            background: #ffffff;
+            border: 1px solid #eeeeee;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+            transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.3s ease;
+            flex-direction: column;
+            cursor: pointer;
+        }
+
+        .bing-card.visible {
+            display: flex;
+        }
+
+        .img-container {
+            width: 100%;
+            height: 200px;
+            overflow: hidden;
+            position: relative;
+            background: #eaeaea;
+        }
+
+        .img-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s ease;
+        }
+
+        .bing-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+        }
+
+        .bing-card:hover .img-container img {
+            transform: scale(1.05);
+        }
+
+        .card-info {
+            padding: 15px 18px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            flex-grow: 1;
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #222222;
+            margin: 0 0 8px 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .card-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.82rem;
+            color: #666666;
+        }
+
+        .card-date {
+            background: #f0f0f0;
+            color: #555555;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+
+        .card-copyright {
+            color: #71717a;
+            max-width: 150px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        @media (max-width: 720px) {
+            main {
+                padding-left: 20px !important;
+                padding-right: 20px !important;
+            }
+            .hero-title {
+                font-size: 1.6rem;
+            }
+        }
+
+        /* 分页 */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 50px;
+            gap: 15px;
+        }
+
+        .pagination-btn {
+            padding: 8px 16px;
+            background-color: #ffffff;
+            color: #0078d4;
+            border: 1px solid #0078d4;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.2s ease;
+        }
+
+        .pagination-btn:hover {
+            background-color: #0078d4;
+            color: #ffffff;
+        }
+
+        .pagination-btn.disabled {
+            color: #cccccc;
+            border-color: #eeeeee;
+            background-color: #fafafa;
+            pointer-events: none;
+        }
+
+        /* 灯箱 */
+        .lightbox-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .lightbox-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .lightbox-content {
+            position: relative;
+            max-width: 90%;
+            max-height: 85%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .lightbox-img {
+            max-width: 100%;
+            max-height: 80vh;
+            object-fit: contain;
+            border-radius: 6px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+        }
+
+        .lightbox-caption {
+            margin-top: 15px;
+            color: #ffffff;
+            font-size: 1.1rem;
+            background: rgba(255,255,255,0.1);
+            padding: 6px 16px;
+            border-radius: 20px;
+            backdrop-filter: blur(5px);
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: -40px;
+            right: 0;
+            font-size: 30px;
+            color: #ffffff;
+            cursor: pointer;
+        }
+        .lightbox-close:hover {
+            color: #ff4d4d;
+        }
+    </style>
+</head>
+<body>
+    <Header />
+
+    <!-- 1. 顶部的今日全屏壁纸组件 -->
+    {todayImage.src && (
+        <div class="hero-section">
+            <img src={todayImage.src} alt={todayImage.title} class="hero-bg" />
+            <div class="hero-overlay">
+                <span class="hero-tag">TODAY BING</span>
+                <h2 class="hero-title">{todayImage.title}</h2>
+                <span class="hero-date">同步时间：{todayImage.date}</span>
+            </div>
+        </div>
+    )}
+
+    <!-- 2. 下方的历史归档区 -->
+    <main>
+        <div class="section-title">按月份查看</div>
+        
+        <div class="category-filter">
+            {categories.map((cat, index) => (
+                <div class={`category-btn ${index === 0 ? 'active' : ''}`} data-category={cat}>{cat}</div>
+            ))}
+        </div>
+
+        <div class="bing-grid">
+            {sortedImages.map((img) => (
+                <div class="bing-card" data-src={img.src} data-title={img.title} data-category={img.category}>
+                    <div class="img-container">
+                        <img src={img.src} alt={img.title} loading="lazy" />
+                    </div>
+                    <div class="card-info">
+                        <h3 class="card-title" title={img.title}>{img.title}</h3>
+                        <div class="card-footer">
+                            <span class="card-date">{img.date}</span>
+                            <span class="card-copyright">© Bing</span>
+                        </div>
+                    </div>
+                </div>
+            ))}
+        </div>
+
+        <div class="pagination" id="pagination-bar">
+            <div id="prev-btn" class="pagination-btn">← 上一页</div>
+            <span class="page-number">第 <span id="current-page-text">1</span> / <span id="total-page-text">1</span> 页</span>
+            <div id="next-btn" class="pagination-btn">下一页 →</div>
+        </div>
+    </main>
+
+    <Footer />
+
+    <!-- 灯箱 -->
+    <div class="lightbox-overlay" id="lightbox">
+        <div class="lightbox-content">
+            <span class="lightbox-close" id="lightbox-close">&times;</span>
+            <img class="lightbox-img" id="lightbox-img" src="" alt="大图" />
+            <div class="lightbox-caption" id="lightbox-caption"></div>
+        </div>
+    </div>
+
+    <script define:vars={{ defaultCategory }}>
+        const cards = document.querySelectorAll('.bing-card');
+        const catButtons = document.querySelectorAll('.category-btn');
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const currentPageText = document.getElementById('current-page-text');
+        const totalPageText = document.getElementById('total-page-text');
+        const paginationBar = document.getElementById('pagination-bar');
+
+        function getDynamicPageSize() {
+            const width = window.innerWidth;
+            if (width >= 1300) return 35; // 5列 * 7行 = 35
+            if (width >= 1010) return 32; // 4列 * 8行 = 32
+            if (width >= 690)  return 33; // 3列 * 11行 = 33
+            return 30; 
+        }
+
+        let currentCategory = defaultCategory;
+        let currentPage = 1;
+        let filteredCards = [];
+
+        function updateGallery() {
+            const pageSize = getDynamicPageSize();
+            filteredCards = [];
+            
+            cards.forEach(card => {
+                const cardCat = card.getAttribute('data-category');
+                if (cardCat === currentCategory) {
+                    filteredCards.push(card);
+                }
+                card.classList.remove('visible');
+            });
+
+            const totalPages = Math.ceil(filteredCards.length / pageSize) || 1;
+            if (currentPage > totalPages) currentPage = totalPages;
+
+            const start = (currentPage - 1) * pageSize;
+            const end = start + pageSize;
+
+            filteredCards.forEach((card, index) => {
+                if (index >= start && index < end) {
+                    card.classList.add('visible');
+                }
+            });
+
+            if (currentPageText) currentPageText.textContent = currentPage;
+            if (totalPageText) totalPageText.textContent = totalPages;
+
+            if (totalPages <= 1) {
+                if (paginationBar) paginationBar.style.display = 'none';
+            } else {
+                if (paginationBar) paginationBar.style.display = 'flex';
+            }
+
+            if (prevBtn) {
+                if (currentPage === 1) prevBtn.classList.add('disabled');
+                else prevBtn.classList.remove('disabled');
+            }
+
+            if (nextBtn) {
+                if (currentPage === totalPages) nextBtn.classList.add('disabled');
+                else nextBtn.classList.remove('disabled');
+            }
+        }
+
+        catButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                catButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentCategory = btn.getAttribute('data-category');
+                currentPage = 1;
+                updateGallery();
+            });
+        });
+
+        prevBtn?.addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                updateGallery();
+                window.scrollTo({ top: document.querySelector('.section-title').offsetTop - 20, behavior: 'smooth' });
+            }
+        });
+
+        nextBtn?.addEventListener('click', () => {
+            const pageSize = getDynamicPageSize();
+            const totalPages = Math.ceil(filteredCards.length / pageSize) || 1;
+            if (currentPage < totalPages) {
+                currentPage++;
+                updateGallery();
+                window.scrollTo({ top: document.querySelector('.section-title').offsetTop - 20, behavior: 'smooth' });
+            }
+        });
+
+        window.addEventListener('resize', updateGallery);
+        updateGallery();
+
+        // 灯箱大图逻辑
+        const lightbox = document.getElementById('lightbox');
+        const lightboxImg = document.getElementById('lightbox-img');
+        const lightboxCaption = document.getElementById('lightbox-caption');
+        const lightboxClose = document.getElementById('lightbox-close');
+
+        cards.forEach(card => {
+            card.addEventListener('click', () => {
+                const fullSrc = card.getAttribute('data-src');
+                const title = card.getAttribute('data-title');
+                if (lightboxImg && lightboxCaption && lightbox) {
+                    lightboxImg.src = fullSrc;
+                    lightboxCaption.textContent = title;
+                    lightbox.classList.add('active');
+                    document.body.style.overflow = 'hidden';
+                }
+            });
+        });
+
+        function closeLightbox() {
+            if (lightbox) {
+                lightbox.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+        }
+        lightboxClose?.addEventListener('click', closeLightbox);
+        lightbox?.addEventListener('click', (e) => { if (e.target === lightbox) closeLightbox(); });
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeLightbox(); });
+    </script>
+</body>
+</html>
